@@ -1,0 +1,153 @@
+Validation Error Epoch 1: 
+ Accuracy: 19.5%, Avg loss: 3.947493 
+
+Validation Error Epoch 1: 
+ Accuracy: 18.5%, Avg loss: 2.465758 
+
+Validation Error Epoch 2: 
+ Accuracy: 4.6%, Avg loss: 4.906023 
+
+Validation Error Epoch 3: 
+ Accuracy: 36.5%, Avg loss: 2.244569 
+
+Validation Error Epoch 4: 
+ Accuracy: 19.7%, Avg loss: 3.220954 
+
+Validation Error Epoch 5: 
+ Accuracy: 32.9%, Avg loss: 3.067209 
+
+Validation Error Epoch 6: 
+ Accuracy: 21.5%, Avg loss: 4.497387 
+
+Validation Error Epoch 7: 
+ Accuracy: 28.1%, Avg loss: 3.046504 
+
+Validation Error Epoch 8: 
+ Accuracy: 28.1%, Avg loss: 3.545128 
+
+Validation Error Epoch 9: 
+ Accuracy: 20.5%, Avg loss: 4.762733 
+
+Validation Error Epoch 10: 
+ Accuracy: 25.8%, Avg loss: 3.631175 
+
+Validation Error Epoch 11: 
+ Accuracy: 19.7%, Avg loss: 4.949379 
+
+Validation Error Epoch 12: 
+ Accuracy: 27.6%, Avg loss: 3.872067 
+
+Validation Error Epoch 13: 
+ Accuracy: 16.7%, Avg loss: 4.366605 
+
+Validation Error Epoch 14: 
+ Accuracy: 23.0%, Avg loss: 4.895535 
+
+Validation Error Epoch 15: 
+ Accuracy: 28.6%, Avg loss: 4.336084 
+
+Validation Error Epoch 16: 
+ Accuracy: 27.6%, Avg loss: 4.563809 
+
+Validation Error Epoch 17: 
+ Accuracy: 28.4%, Avg loss: 4.159918 
+
+Validation Error Epoch 18: 
+ Accuracy: 28.6%, Avg loss: 4.333571 
+
+Validation Error Epoch 19: 
+ Accuracy: 20.3%, Avg loss: 5.478962 
+
+Validation Error Epoch 20: 
+ Accuracy: 31.1%, Avg loss: 4.300177 
+
+Validation Error Epoch 21: 
+ Accuracy: 29.9%, Avg loss: 4.443460 
+
+Validation Error Epoch 22: 
+ Accuracy: 27.6%, Avg loss: 4.761703 
+
+Validation Error Epoch 23: 
+ Accuracy: 27.8%, Avg loss: 4.701642 
+
+Validation Error Epoch 24: 
+ Accuracy: 32.4%, Avg loss: 4.694688 
+
+Validation Error Epoch 25: 
+ Accuracy: 31.4%, Avg loss: 5.130925 
+
+Validation Error Epoch 26: 
+ Accuracy: 24.6%, Avg loss: 5.533125 
+
+Validation Error Epoch 27: 
+ Accuracy: 18.2%, Avg loss: 6.813551 
+
+Validation Error Epoch 28: 
+ Accuracy: 24.6%, Avg loss: 5.194645 
+
+Validation Error Epoch 29: 
+ Accuracy: 13.4%, Avg loss: 7.578701 
+
+Validation Error Epoch 30: 
+ Accuracy: 27.3%, Avg loss: 4.921455 
+
+Validation Error Epoch 31: 
+ Accuracy: 39.2%, Avg loss: 5.026433 
+
+Validation Error Epoch 32: 
+ Accuracy: 29.9%, Avg loss: 4.562839 
+
+Validation Error Epoch 33: 
+ Accuracy: 32.7%, Avg loss: 4.512518 
+
+Validation Error Epoch 34: 
+ Accuracy: 31.6%, Avg loss: 4.761966 
+
+Validation Error Epoch 35: 
+ Accuracy: 35.7%, Avg loss: 4.818528 
+
+Validation Error Epoch 36: 
+ Accuracy: 30.1%, Avg loss: 4.970263 
+
+Validation Error Epoch 37: 
+ Accuracy: 32.9%, Avg loss: 4.706175 
+
+Validation Error Epoch 38: 
+ Accuracy: 32.7%, Avg loss: 4.832563 
+
+Validation Error Epoch 39: 
+ Accuracy: 32.4%, Avg loss: 4.862254 
+
+Validation Error Epoch 40: 
+ Accuracy: 33.2%, Avg loss: 4.909464 
+
+Validation Error Epoch 41: 
+ Accuracy: 31.1%, Avg loss: 4.905703 
+
+Validation Error Epoch 42: 
+ Accuracy: 33.9%, Avg loss: 4.892160 
+
+Validation Error Epoch 43: 
+ Accuracy: 31.9%, Avg loss: 4.970180 
+
+Validation Error Epoch 44: 
+ Accuracy: 33.9%, Avg loss: 4.971130 
+
+Validation Error Epoch 45: 
+ Accuracy: 32.2%, Avg loss: 5.020509 
+
+Validation Error Epoch 46: 
+ Accuracy: 33.4%, Avg loss: 5.028680 
+
+Validation Error Epoch 47: 
+ Accuracy: 32.9%, Avg loss: 5.065357 
+
+Validation Error Epoch 48: 
+ Accuracy: 34.2%, Avg loss: 5.056739 
+
+Validation Error Epoch 49: 
+ Accuracy: 32.9%, Avg loss: 5.100858 
+
+Validation Error Epoch 50: 
+ Accuracy: 29.6%, Avg loss: 5.380306 
+
