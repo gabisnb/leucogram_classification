@@ -1,2 +1,0 @@
-Test Error: 
- Accuracy: 71.3%, Avg loss: 1.675583 

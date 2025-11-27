@@ -1,12 +1,12 @@
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-from torchvision import datasets, transforms
+from torchvision import datasets, transforms, models
 from torchvision.transforms import ToTensor, Compose, Resize, Normalize
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
 from resnet import ResNet, ResidualBlock
 import os
 from pathlib import Path
@@ -18,6 +18,7 @@ import argparse
 device = "cuda" if torch.cuda.is_available() else "cpu"
 parser = argparse.ArgumentParser(description="Training and evaluating a ResNet model for image classification.")
 parser.add_argument("-e", "--epochs", type=int, help="Number of training epochs.", default=50)
+parser.add_argument("-c", "--check-dataset", action="store_true", help="Check dataset structure and classes.")
 
 def walk_through_dir(dir_path):
     for dirpath, dirnames, filenames in os.walk(dir_path):
@@ -36,7 +37,7 @@ def check_dataset(train_data, test_data, val_data):
     print(f'Number of samples per set: {len(train_data), len(test_data), len(val_data)}')
 
 
-def train(dataloader, model, loss_fn, epoch, lr, optimizer):
+def train(dataloader, model, loss_fn, epoch, lr, optimizer, version = "", training_loss=None):
 
     # size of the dataset
     size = len(dataloader.dataset)
@@ -69,15 +70,17 @@ def train(dataloader, model, loss_fn, epoch, lr, optimizer):
         optimizer.step()
 
     print(f"Epoch average loss: {totalLoss/len(dataloader):>7f}")
+    if training_loss is not None:
+        training_loss.append(totalLoss/len(dataloader))
     # save results to file
     try:
-        with open('resnet_results/train' + str(batch_size) + '_' + str(lr) + '_sgd.txt', 'a') as f:
+        with open('logs/train' + str(batch_size) + '_' + str(lr) + '_' + str(parser.parse_args().epochs) + '_sgd' + version +'.txt', 'a') as f:
             f.write(f"Training Error Epoch {epoch}: {totalLoss/len(dataloader):>7f} \n\n")
     except:
         print("Error writing to file")
 
 
-def validate(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, optimizer):
+def validate(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, optimizer, version = "", validation_loss=None, validation_accuracy=None):
     all_preds, all_labels = [], []
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
@@ -109,9 +112,14 @@ def validate(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, opt
     
     print(f"Validation Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {val_loss:>8f} \n")
 
+    if validation_accuracy is not None:
+        validation_accuracy.append(100*correct)
+    if validation_loss is not None:
+        validation_loss.append(val_loss)
+
     # save results to file
     try:
-        with open('resnet_results/val' + str(batch_size) + '_' + str(lr) + '_' + str(optimizer) + '.txt', 'a') as f:
+        with open('logs/val' + str(batch_size) + '_' + str(lr) + '_' + str(optimizer) + version + '.txt', 'a') as f:
             f.write(f"Validation Error Epoch {epoch}: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {val_loss:>8f} \n\n")
     except:
         print("Error writing to file")
@@ -128,13 +136,13 @@ def validate(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, opt
 
     # save confusion matrix as image
     plt.figure(figsize=(10, 7))
-    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', yticklabels=class_names)
+    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
     plt.xlabel('Predicted')
     plt.ylabel('True')
 
-    plt.savefig('confusion_matrix/val/resnet_cm_' + str(batch_size) + '_' + str(lr) + '_val.png')
+    plt.savefig('confusion_matrix/val/resnet_cm_' + str(batch_size) + '_' + str(lr) + '_' + str(parser.parse_args().epochs) + '_' + str(optimizer) + version + '_val.png')
 
-def test(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, optimizer):
+def test(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, optimizer, version = ""):
 
     # size of the dataset and number of batches
     size = len(dataloader.dataset)
@@ -177,11 +185,10 @@ def test(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, optimiz
 
     # save results to file
     try:
-        with open('resnet_results/resnet_' + str(batch_size) + '_' + str(epoch) + '_' + str(lr) + '.txt', 'w') as f:
+        with open('logs/test_' + str(batch_size) + '_' + str(epoch) + '_' + str(lr) + '_' + str(optimizer) + version + '.txt', 'w') as f:
             f.write(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
     except:
         print("Error writing to file")
-
 
     #### Confusion Matrix
     # Convert to numpy arrays
@@ -194,11 +201,11 @@ def test(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, optimiz
 
     # save confusion matrix as image
     plt.figure(figsize=(10, 7))
-    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', yticklabels=class_names)
+    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
     plt.xlabel('Predicted')
     plt.ylabel('True')
 
-    plt.savefig('confusion_matrix/test/resnet_cm_' + str(batch_size) + '_' + str(epoch) + '_' + str(lr) + '_' + str(optimizer) + '_test.png')
+    plt.savefig('confusion_matrix/test/test_cm_' + str(batch_size) + '_' + str(epoch) + '_' + str(lr) + '_' + str(optimizer) + version + '_test.png')
 
 
 data_path = Path("/home/gabriela/projetos/datasets/")
@@ -210,8 +217,8 @@ else:
     print(f'The directory "{image_path}" does not exist.')
     exit()
 
-
-walk_through_dir(image_path)
+if parser.parse_args().check_dataset:
+    walk_through_dir(image_path)
 
 train_dir = image_path / "train"
 val_dir = image_path / "val"
@@ -241,7 +248,8 @@ test_data = datasets.ImageFolder(root=test_dir, transform=transform, target_tran
 
 val_data = datasets.ImageFolder(root=val_dir, transform=transform, target_transform=None)
 
-check_dataset(train_data, test_data, val_data)
+if parser.parse_args().check_dataset:
+    check_dataset(train_data, test_data, val_data)
 
 num_classes = 5
 epochs = parser.parse_args().epochs
@@ -254,25 +262,74 @@ train_dataloader = DataLoader(dataset = train_data, batch_size=batch_size, num_w
 test_dataloader = DataLoader(dataset = test_data, batch_size=batch_size, num_workers=1, shuffle=False)
 val_dataloader = DataLoader(dataset = val_data, batch_size=batch_size, num_workers=1, shuffle=False)
 
-resnet = ResNet(ResidualBlock, [3, 4, 6, 3]).to(device)
+# resnet = ResNet(ResidualBlock, [3, 4, 6, 3]).to(device)
+resnet = models.resnet34(pretrained=True).to(device)
 optimizer = torch.optim.SGD(resnet.parameters(), lr=learning_rate)
 
+version = ""
+if os.path.exists("weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd.pth"):
+    for i in range(1, 100):
+        if not os.path.exists("weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd_v" + str(i) + ".pth"):
+            version = "_v" + str(i)
+            break
+
 start, end = 0, 0
+training_loss = []
+validation_loss = []
+validation_accuracy = []
+
 for t in range(epochs):
     print(f"-------------------------------\nEpoch {t+1}")
     start = time.time()
-    train(train_dataloader, resnet, loss_fn, (t+1), learning_rate, optimizer)
+    train(train_dataloader, resnet, loss_fn, (t+1), learning_rate, optimizer, version=version, training_loss=training_loss)
     end = time.time()
     print(f"Epoch time: {end-start}")
     print("Running Validation...")
     start = time.time()
-    validate(val_dataloader, class_names, resnet, loss_fn, batch_size, (t+1), learning_rate, 'sgd')
+    validate(val_dataloader, class_names, resnet, loss_fn, batch_size, (t+1), learning_rate, 'sgd', version=version, validation_loss=validation_loss, validation_accuracy=validation_accuracy)
     end = time.time()
     print(f"Validation time: {end-start}")
 
+if os.path.exists("weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd.pth"):
+    for i in range(1, 100):
+        if not os.path.exists("weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd_v" + str(i) + ".pth"):
+            torch.save(resnet.state_dict(), "weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd_v" + str(i) + ".pth")
+            break
+else:
+    torch.save(resnet.state_dict(), "weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd.pth")
+
+training_loss = [loss.cpu().item() for loss in training_loss]
+
+# plot training loss curve
+plt.figure(figsize=(10, 6))
+plt.plot(range(1, len(training_loss) + 1), training_loss, label='Training Loss (PyTorch)')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('PyTorch Training Loss Curve')
+plt.grid(True)
+plt.savefig('results/training_loss_' + str(batch_size) + '_' + str(learning_rate) + '_' + str(epochs) + version + '_sgd.png')
+
+# plot validation loss and accuracy curves
+fig, ax = plt.subplots(1, 2)
+loss_plot, accuracy_plot = ax
+
+loss_plot.plot(range(1, len(validation_loss) + 1), validation_loss, label='Validation Loss (PyTorch)', color='orange')
+loss_plot.set_xlabel('Epoch')
+loss_plot.set_ylabel('Loss')
+loss_plot.set_title('PyTorch Validation Loss Curve')
+loss_plot.grid(True)
+
+accuracy_plot.plot(range(1, len(validation_accuracy) + 1), validation_accuracy, label='Validation Accuracy (PyTorch)', color='green')
+accuracy_plot.set_xlabel('Epoch')
+accuracy_plot.set_ylabel('Accuracy (%)')
+accuracy_plot.set_title('PyTorch Validation Accuracy Curve')
+accuracy_plot.grid(True)
+plt.tight_layout()
+plt.savefig('results/validation_loss_accuracy_' + str(batch_size) + '_' + str(learning_rate) + '_' + str(epochs) + version + '_sgd.png')
+
 #### Testing
 start = time.time()
-test(test_dataloader, class_names, resnet, loss_fn, batch_size, (t+1), learning_rate, 'sgd')
+test(test_dataloader, class_names, resnet, loss_fn, batch_size, (t+1), learning_rate, 'sgd', version=version)
 end = time.time()
 print(f"Test time: {end-start}")
 print("\nDone!")

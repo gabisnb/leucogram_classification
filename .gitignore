@@ -1,2 +1,5 @@
 /__pycache__
-/confusion_matrix/val
+/confusion_matrix
+/logs
+/results
+/weights
