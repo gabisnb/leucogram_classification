@@ -207,6 +207,11 @@ def test(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, optimiz
 
     plt.savefig('confusion_matrix/test/test_cm_' + str(batch_size) + '_' + str(epoch) + '_' + str(lr) + '_' + str(optimizer) + version + '_test.png')
 
+def load_model_weights(model, weight_path):
+    state_dict = torch.load(weight_path, weights_only=True)
+    model.load_state_dict(state_dict)
+    model.eval()
+    return model
 
 data_path = Path("/home/gabriela/projetos/datasets/")
 image_path = data_path / "cut_bboxes_separated"
@@ -262,6 +267,10 @@ train_dataloader = DataLoader(dataset = train_data, batch_size=batch_size, num_w
 test_dataloader = DataLoader(dataset = test_data, batch_size=batch_size, num_workers=1, shuffle=False)
 val_dataloader = DataLoader(dataset = val_data, batch_size=batch_size, num_workers=1, shuffle=False)
 
+# resnet = models.resnet34().to(device)
+# resnet = load_model_weights(resnet, "weights/resnet_16_0.01_50_sgd_v1.pth")
+# test(test_dataloader, class_names, resnet, loss_fn, batch_size, 50, learning_rate, 'sgd', version="_v1_2")
+
 # resnet = ResNet(ResidualBlock, [3, 4, 6, 3]).to(device)
 resnet = models.resnet34(pretrained=True).to(device)
 optimizer = torch.optim.SGD(resnet.parameters(), lr=learning_rate)
@@ -290,13 +299,7 @@ for t in range(epochs):
     end = time.time()
     print(f"Validation time: {end-start}")
 
-if os.path.exists("weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd.pth"):
-    for i in range(1, 100):
-        if not os.path.exists("weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd_v" + str(i) + ".pth"):
-            torch.save(resnet.state_dict(), "weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd_v" + str(i) + ".pth")
-            break
-else:
-    torch.save(resnet.state_dict(), "weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd.pth")
+torch.save(resnet.state_dict(), "weights/resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd" + version + ".pth")
 
 training_loss = [loss.cpu().item() for loss in training_loss]
 
