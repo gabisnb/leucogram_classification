@@ -277,7 +277,7 @@ def __main__():
     image_path = data_path / "cut_bboxes_folds"
     num_classes = 5
     class_names = ['bastonete', 'eosinofilo', 'linfocito', 'monocito', 'neutrofilo']
-    num_folds = os.listdir(image_path).__len__()
+    num_folds = os.listdir(image_path).__len__() - 1
     epochs = parser.parse_args().epochs
     batch_size = 16
     learning_rate = 0.01
@@ -349,13 +349,14 @@ def __main__():
         torch.save(resnet.state_dict(), "folds/weights/" + file_name + version + ".pth")
 
         start = time.time()
-        fold_preds, fold_labels = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, version=version)
+        fold_preds, fold_labels, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, version=version)
         end = time.time()
         print(f"Test time: {end-start}")
         all_fold_preds.extend(fold_preds)
         all_fold_labels.extend(fold_labels)
+        all_fold_accuracies.append(fold_accuracy)
 
-    # plot_training_loss(training_losses, file_name_prefix, version=version)
+    plot_training_loss(training_losses, file_name_prefix, version=version)
     plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name_prefix, version=version)
     plot_accuracies(all_fold_accuracies, file_name_prefix, version=version)
 
