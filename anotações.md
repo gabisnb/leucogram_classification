@@ -139,7 +139,7 @@ Soma: 392
     * neutrofilo: 156
 
 ## Fold 4
-- 517P: 264
+- 517P: 212
     * bastonete: 110 (22)
     * eosinofilo: 18 (12)
     * linfocito: 46
@@ -166,8 +166,8 @@ Soma: 439
     * monocito: 21 (6)
     * neutrofilo: 39
 Soma: 446
-* Total: 885
-    * bastonete: 225 (121) *** excluir algumas augmentações ***
+* Total: 833
+    * bastonete: 165 (121)
     * eosinofilo: 147 (93) 
     * linfocito: 168
     * monocito: 153 (48) 

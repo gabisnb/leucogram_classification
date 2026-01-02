@@ -161,14 +161,15 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 1, vers
     
     # average loss and accuracy
     test_loss /= num_batches
-    correct /= size
+    accuracy = 100*correct/size
     
-    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    print(f"Test Error: \n Accuracy: {(accuracy):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    print(f"Number of correct predictions: {correct} out of {size}")
 
     # save results to file
     try:
         with open('folds/logs/test_' + file_name + version + '.txt', 'w') as f:
-            f.write(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+            f.write(f"Test Error: \n Accuracy: {accuracy:>0.1f}%, Avg loss: {test_loss:>8f} \n")
     except:
         print("Error writing to file")
 
@@ -188,15 +189,16 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 1, vers
     plt.ylabel('True')
     plt.title('Normalized Confusion Matrix Fold ' + str(fold+1))
 
-    plt.savefig('folds/confusion_matrix/test/test_normalized_' + file_name + version + '.png')
+    plt.savefig('folds/confusion_matrix/test/normalized/test_normalized_' + file_name + version + '.png')
 
     plt.figure(figsize=(10, 7))
-    sns.heatmap(cm, annot=True, cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title('Confusion Matrix Fold ' + str(fold+1))
 
-    plt.savefig('folds/confusion_matrix/test/test_absolute_' + file_name + version + '.png')
+    plt.savefig('folds/confusion_matrix/test/absolute/test_absolute_' + file_name + version + '.png')
+    return all_preds, all_labels, accuracy
 
 def plot_training_loss(training_losses, file_name, version=""):
     fig, folds = plt.subplots(2, 3, figsize=(20, 12))
@@ -230,6 +232,40 @@ def plot_training_loss(training_losses, file_name, version=""):
     plt.tight_layout(pad=2.0)
     plt.savefig('folds/results/training_loss_' + file_name + version + '.png')
 
+def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name, version=""):
+    # Compute confusion matrix
+    cm = confusion_matrix(all_labels, all_preds)
+    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+    # save confusion matrix as image
+    plt.figure(figsize=(10, 7))
+    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title('Normalized Complete Confusion Matrix')
+
+    plt.savefig('folds/confusion_matrix/test/complete/test_normalized_' + file_name + version + '.png')
+
+    plt.figure(figsize=(10, 7))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title('Complete Confusion Matrix')
+
+    plt.savefig('folds/confusion_matrix/test/complete/test_absolute_' + file_name + version + '.png')
+
+def plot_accuracies(accuracies, file_name, version=""):
+    folds_ticks = [i+1 for i in range(len(accuracies))]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.scatter(range(1, len(accuracies) + 1), accuracies, marker='o', color='blue', s=100)
+    ax.set_xticks(folds_ticks)
+    ax.set_xlabel('Fold')
+    ax.set_ylim(min(accuracies)-5, max(accuracies)+5)
+    ax.set_ylabel('Accuracy (%)')
+    ax.set_title('Test Accuracy')
+    ax.grid(True)
+    plt.savefig('folds/results/test_accuracy_' + file_name + "_alt" + version + '.png')
+
 def load_model_weights(model, weight_path):
     state_dict = torch.load(weight_path, weights_only=True)
     model.load_state_dict(state_dict)
@@ -255,6 +291,9 @@ def __main__():
     ])
 
     training_losses = []
+    all_fold_preds = []
+    all_fold_labels = []
+    all_fold_accuracies = []
 
     version = ""
     file_name_prefix = "resnet_" + str(batch_size) + "_" + str(learning_rate) + "_" + str(epochs) + "_sgd"
@@ -272,21 +311,24 @@ def __main__():
     # train_dataset = ConcatDataset([datasets_folds[i] for i in range(num_folds) if i != 4])
     # test_dataset = datasets_folds[4]
 
-    
-    
-
     for fold in range(num_folds):
         train_dataset = ConcatDataset([datasets_folds[i] for i in range(num_folds) if i != fold])
-        test_dataset = datasets_folds[fold]
+        cristal_dataset = datasets.ImageFolder(root=image_path / "cristal", transform=transform, target_transform=None)
+        test_dataset = ConcatDataset([datasets_folds[fold], cristal_dataset])
         
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
         
         file_name = file_name_prefix + "_" + str(fold+1)
 
+        #! usado apenas em testes rápidos sem treinamento
         # resnet = models.resnet34().to(device)
         # resnet = load_model_weights(resnet, "folds/weights/" + file_name + ".pth")
-        # test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, fold=fold, version="_v1.1")
+        # fold_preds, fold_labels, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, fold=fold, version="_v1.1")
+        
+        # all_fold_preds.extend(fold_preds)
+        # all_fold_labels.extend(fold_labels)
+        # all_fold_accuracies.append(fold_accuracy)
         # continue
 
         resnet = models.resnet34(weights=models.ResNet34_Weights.DEFAULT).to(device)
@@ -307,9 +349,15 @@ def __main__():
         torch.save(resnet.state_dict(), "folds/weights/" + file_name + version + ".pth")
 
         start = time.time()
-        test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, version=version)
-    plot_training_loss(training_losses, file_name_prefix, version=version)
-        
+        fold_preds, fold_labels = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, version=version)
+        end = time.time()
+        print(f"Test time: {end-start}")
+        all_fold_preds.extend(fold_preds)
+        all_fold_labels.extend(fold_labels)
+
+    # plot_training_loss(training_losses, file_name_prefix, version=version)
+    plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name_prefix, version=version)
+    plot_accuracies(all_fold_accuracies, file_name_prefix, version=version)
 
 
 if __name__ == "__main__":
