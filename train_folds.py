@@ -18,6 +18,7 @@ import argparse
 device = "cuda" if torch.cuda.is_available() else "cpu"
 parser = argparse.ArgumentParser(description="Training and evaluating a ResNet model for image classification.")
 parser.add_argument("-e", "--epochs", type=int, help="Number of training epochs.", default=50)
+parser.add_argument("-s", "--statistics", action="store_true", help="Generate statistics for incorrect predictions.")
 
 def train_fold(dataloader, model, loss_fn, epoch, optimizer, file_name, version = "", training_loss=None):
 
@@ -124,7 +125,7 @@ def validate_fold(dataloader, class_names, model, loss_fn, batch_size, epoch, lr
 
     plt.savefig('confusion_matrix/val/resnet_cm_' + str(batch_size) + '_' + str(lr) + '_' + str(parser.parse_args().epochs) + '_' + str(optimizer) + version + '_val.png')
 
-def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 1, version = ""):
+def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 0, version = ""):
 
     # size of the dataset and number of batches
     size = len(dataloader.dataset)
@@ -136,12 +137,12 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 1, vers
     test_loss, correct = 0, 0
 
     # initialize lists of predictions and labels for confusion matrix
-    all_preds, all_labels = [], []
+    all_preds, all_labels, incorrect_examples = [], [], []
 
     # disable gradient computation
     with torch.no_grad():
 
-        for X, y in dataloader:
+        for i, (X, y) in enumerate(dataloader):
             # transforms the inputs to the device format (CPU or GPU)
             X, y = X.to(device), y.to(device)
 
@@ -152,6 +153,8 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 1, vers
             _, preds = torch.max(pred, 1)
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(y.cpu().numpy())
+            if preds != y:
+                incorrect_examples.append(i)
             
             # calculate loss
             test_loss += loss_fn(pred, y).item()
@@ -198,7 +201,7 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 1, vers
     plt.title('Confusion Matrix Fold ' + str(fold+1))
 
     plt.savefig('folds/confusion_matrix/test/absolute/test_absolute_' + file_name + version + '.png')
-    return all_preds, all_labels, accuracy
+    return all_preds, all_labels, incorrect_examples, accuracy
 
 def plot_training_loss(training_losses, file_name, version=""):
     fig, folds = plt.subplots(2, 3, figsize=(20, 12))
@@ -266,6 +269,74 @@ def plot_accuracies(accuracies, file_name, version=""):
     ax.grid(True)
     plt.savefig('folds/results/test_accuracy_' + file_name + "_alt" + version + '.png')
 
+def get_img_dataset(img_index, datasets, fold):
+    img_dataset = datasets[fold]
+    if img_index >= len(datasets[fold]):
+        img_index -= len(datasets[fold])
+        img_dataset = datasets[-1]
+    return img_dataset, img_index
+
+def get_individual_by_path(path, individuals):
+    for individual in individuals:
+        if individual in path:
+            return individual
+    return None
+
+def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_examples, class_names, individuals, file_name, fold=0, version=''):
+    nrows=4, ncols=5
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 6))
+    for i, ax in enumerate(axes.flatten()):
+        index = random.randint(0, len(fold_incorrect_examples)-1)
+        img_index = fold_incorrect_examples[index]
+        if i < nrows * ncols and i < len(fold_incorrect_examples):
+            img_dataset, img_index = get_img_dataset(img_index, datasets, fold)
+            path, label = img_dataset.samples[img_index]
+            tensor = img_dataset[img_index][0].cpu()
+            img = (tensor.numpy().transpose((1, 2, 0))).squeeze()
+            img = np.clip(img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]), 0, 1) # Unnormalize
+            individual = get_individual_by_path(path, individuals)
+            ax.imshow(img) # Use 'viridis' colormap for grayscale numpy arrays
+            ax.set_title(f'Prev: {class_names[fold_preds[img_index]]}, Y: {class_names[label]}\nName: {individual}') # Set a title for each image
+            ax.axis('off') # Hide the x and y axis ticks and labels for a cleaner look
+        else:
+            # Hide any unused subplots if the number of images is less than nrows*ncols
+            fig.delaxes(ax)
+
+    plt.tight_layout(h_pad=2.0)
+    plt.savefig('folds/incorrect_predictions/examples/incorrect_examples_fold_' + str(fold+1) + '_v1.2.png')
+
+    incorrect_counts_class = {class_name: 0 for class_name in class_names}
+    incorrect_counts_individual = {individual: 0 for individual in individuals}
+    with open('folds/logs/test_' + file_name + version + '.txt', 'a') as f:
+        f.write(f"\nIncorrect Predictions Paths Fold {str(fold+1)}:\n")
+        for index in fold_incorrect_examples:
+            img_dataset, index = get_img_dataset(index, datasets, fold)
+            path, label = img_dataset.samples[index]
+            f.write("\n" + path)
+            incorrect_counts_class[class_names[label]] += 1
+            individual = get_individual_by_path(path, individuals)
+            if individual is not None:
+                incorrect_counts_individual[individual] += 1
+    
+    fig, ax = plt.subplots(1, 2, figsize=(10, 6))
+
+    # Plot incorrect predictions per class
+    ax[0].bar(incorrect_counts_class.keys(), incorrect_counts_class.values())
+    ax[0].set_xlabel('Classes')
+    ax[0].set_ylabel('Number of Incorrect Predictions')
+    ax[0].set_title('Incorrect Predictions per Class')
+    plt.xticks(rotation=45)
+
+    # Plot incorrect predictions per individual
+    ax[1].bar(incorrect_counts_individual.keys(), incorrect_counts_individual.values())
+    ax[1].set_xlabel('Individuals')
+    ax[1].set_ylabel('Number of Incorrect Predictions')
+    ax[1].set_title('Incorrect Predictions per Individual')
+    plt.xticks(rotation=45)
+    plt.suptitle('Incorrect Predictions Counts Fold ' + str(fold+1))
+    plt.tight_layout()
+    plt.savefig('folds/incorrect_predictions/statistics/incorrect_predictions_counts_' + str(fold+1) + '_v1.2.png')
+
 def load_model_weights(model, weight_path):
     state_dict = torch.load(weight_path, weights_only=True)
     model.load_state_dict(state_dict)
@@ -277,6 +348,7 @@ def __main__():
     image_path = data_path / "cut_bboxes_folds"
     num_classes = 5
     class_names = ['bastonete', 'eosinofilo', 'linfocito', 'monocito', 'neutrofilo']
+    fold_individuals = [['MaluP', 'SlashP', 'SlashG', 'LobinhoG', 'CristalG'], ['DuqueP', 'MagreloP', 'TobyG', 'GaiaG', 'CristalG'], ['UrasP', 'NathyP', 'PretinhaG', 'NathyG', 'CristalG'], ['517P', '523P', 'CarameloG', 'JujubaG', 'CristalG'], ['459P', '519P', 'NinaG', 'NegaoG', 'CristalG']]
     num_folds = os.listdir(image_path).__len__() - 1
     epochs = parser.parse_args().epochs
     batch_size = 16
@@ -308,24 +380,25 @@ def __main__():
         dataset = datasets.ImageFolder(root=fold_paths[fold], transform=transform, target_transform=None)
         datasets_folds.append(dataset)
 
-    # train_dataset = ConcatDataset([datasets_folds[i] for i in range(num_folds) if i != 4])
-    # test_dataset = datasets_folds[4]
+    cristal_dataset = datasets.ImageFolder(root=image_path / "cristal", transform=transform, target_transform=None)
+    datasets_folds.append(cristal_dataset)
 
     for fold in range(num_folds):
         train_dataset = ConcatDataset([datasets_folds[i] for i in range(num_folds) if i != fold])
-        cristal_dataset = datasets.ImageFolder(root=image_path / "cristal", transform=transform, target_transform=None)
-        test_dataset = ConcatDataset([datasets_folds[fold], cristal_dataset])
+        test_dataset = ConcatDataset([datasets_folds[fold], datasets_folds[-1]])
         
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
         
         file_name = file_name_prefix + "_" + str(fold+1)
 
         #! usado apenas em testes rápidos sem treinamento
         # resnet = models.resnet34().to(device)
         # resnet = load_model_weights(resnet, "folds/weights/" + file_name + ".pth")
-        # fold_preds, fold_labels, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, fold=fold, version="_v1.1")
-        
+        # fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, fold=fold, version="_v1.2")
+        # if parser.parse_args().statistics:
+        #     plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name, fold=fold, version="_v1.2")
+
         # all_fold_preds.extend(fold_preds)
         # all_fold_labels.extend(fold_labels)
         # all_fold_accuracies.append(fold_accuracy)
@@ -349,9 +422,13 @@ def __main__():
         torch.save(resnet.state_dict(), "folds/weights/" + file_name + version + ".pth")
 
         start = time.time()
-        fold_preds, fold_labels, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, version=version)
+        fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, fold=fold, version=version)
         end = time.time()
         print(f"Test time: {end-start}")
+
+        if parser.parse_args().statistics:
+            plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name, fold=fold, version=version)
+
         all_fold_preds.extend(fold_preds)
         all_fold_labels.extend(fold_labels)
         all_fold_accuracies.append(fold_accuracy)
