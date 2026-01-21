@@ -19,6 +19,9 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 parser = argparse.ArgumentParser(description="Training and evaluating a ResNet model for image classification.")
 parser.add_argument("-e", "--epochs", type=int, help="Number of training epochs.", default=50)
 parser.add_argument("-s", "--statistics", action="store_true", help="Generate statistics for incorrect predictions.")
+parser.add_argument("-q", "--quick-test", action="store_true", help="Do a quick test instead of training.")
+parser.add_argument("-w", "--weight-prefix", type=str, help="Prefix of the weight files for quick testing.", default="resnet_16_0.01_50_sgd_")
+parser.add_argument("-v", "--test-version", type=str, help="Version for test files.", default="")
 
 def train_fold(dataloader, model, loss_fn, epoch, optimizer, file_name, version = "", training_loss=None):
 
@@ -124,6 +127,7 @@ def validate_fold(dataloader, class_names, model, loss_fn, batch_size, epoch, lr
     plt.ylabel('True')
 
     plt.savefig('confusion_matrix/val/resnet_cm_' + str(batch_size) + '_' + str(lr) + '_' + str(parser.parse_args().epochs) + '_' + str(optimizer) + version + '_val.png')
+    plt.close()
 
 def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 0, version = ""):
 
@@ -193,6 +197,7 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 0, vers
     plt.title('Normalized Confusion Matrix Fold ' + str(fold+1))
 
     plt.savefig('folds/confusion_matrix/test/normalized/test_normalized_' + file_name + version + '.png')
+    plt.close()
 
     plt.figure(figsize=(10, 7))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
@@ -201,6 +206,7 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name, fold = 0, vers
     plt.title('Confusion Matrix Fold ' + str(fold+1))
 
     plt.savefig('folds/confusion_matrix/test/absolute/test_absolute_' + file_name + version + '.png')
+    plt.close()
     return all_preds, all_labels, incorrect_examples, accuracy
 
 def plot_training_loss(training_losses, file_name, version=""):
@@ -234,6 +240,7 @@ def plot_training_loss(training_losses, file_name, version=""):
 
     plt.tight_layout(pad=2.0)
     plt.savefig('folds/results/training_loss_' + file_name + version + '.png')
+    plt.close()
 
 def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name, version=""):
     # Compute confusion matrix
@@ -248,6 +255,7 @@ def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name
     plt.title('Normalized Complete Confusion Matrix')
 
     plt.savefig('folds/confusion_matrix/test/complete/test_normalized_' + file_name + version + '.png')
+    plt.close()
 
     plt.figure(figsize=(10, 7))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
@@ -256,6 +264,7 @@ def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name
     plt.title('Complete Confusion Matrix')
 
     plt.savefig('folds/confusion_matrix/test/complete/test_absolute_' + file_name + version + '.png')
+    plt.close()
 
 def plot_accuracies(accuracies, file_name, version=""):
     folds_ticks = [i+1 for i in range(len(accuracies))]
@@ -268,6 +277,7 @@ def plot_accuracies(accuracies, file_name, version=""):
     ax.set_title('Test Accuracy')
     ax.grid(True)
     plt.savefig('folds/results/test_accuracy_' + file_name + "_alt" + version + '.png')
+    plt.close()
 
 def get_img_dataset(img_index, datasets, fold):
     img_dataset = datasets[fold]
@@ -283,7 +293,8 @@ def get_individual_by_path(path, individuals):
     return None
 
 def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_examples, class_names, individuals, file_name, fold=0, version=''):
-    nrows=4, ncols=5
+    nrows = 4
+    ncols = 5
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 6))
     for i, ax in enumerate(axes.flatten()):
         index = random.randint(0, len(fold_incorrect_examples)-1)
@@ -303,7 +314,8 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
             fig.delaxes(ax)
 
     plt.tight_layout(h_pad=2.0)
-    plt.savefig('folds/incorrect_predictions/examples/incorrect_examples_fold_' + str(fold+1) + '_v1.2.png')
+    plt.savefig('folds/incorrect_predictions/examples/incorrect_examples_fold_' + str(fold+1) + version + '.png')
+    plt.close()
 
     incorrect_counts_class = {class_name: 0 for class_name in class_names}
     incorrect_counts_individual = {individual: 0 for individual in individuals}
@@ -335,7 +347,8 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
     plt.xticks(rotation=45)
     plt.suptitle('Incorrect Predictions Counts Fold ' + str(fold+1))
     plt.tight_layout()
-    plt.savefig('folds/incorrect_predictions/statistics/incorrect_predictions_counts_' + str(fold+1) + '_v1.2.png')
+    plt.savefig('folds/incorrect_predictions/statistics/incorrect_predictions_counts_' + str(fold+1) + version + '.png')
+    plt.close()
 
 def load_model_weights(model, weight_path):
     state_dict = torch.load(weight_path, weights_only=True)
@@ -393,16 +406,19 @@ def __main__():
         file_name = file_name_prefix + "_" + str(fold+1)
 
         #! usado apenas em testes rápidos sem treinamento
-        # resnet = models.resnet34().to(device)
-        # resnet = load_model_weights(resnet, "folds/weights/" + file_name + ".pth")
-        # fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, fold=fold, version="_v1.2")
-        # if parser.parse_args().statistics:
-        #     plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name, fold=fold, version="_v1.2")
+        if parser.parse_args().quick_test:
+            version = parser.parse_args().test_version
+            file_name = parser.parse_args().weight_prefix + str(fold+1)
+            resnet = models.resnet34().to(device)
+            resnet = load_model_weights(resnet, "folds/weights/" + file_name + ".pth")
+            fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name, fold=fold, version=version)
+            if parser.parse_args().statistics:
+                plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name, fold=fold, version=version)
 
-        # all_fold_preds.extend(fold_preds)
-        # all_fold_labels.extend(fold_labels)
-        # all_fold_accuracies.append(fold_accuracy)
-        # continue
+            all_fold_preds.extend(fold_preds)
+            all_fold_labels.extend(fold_labels)
+            all_fold_accuracies.append(fold_accuracy)
+            continue
 
         resnet = models.resnet34(weights=models.ResNet34_Weights.DEFAULT).to(device)
         optimizer = torch.optim.SGD(resnet.parameters(), lr=learning_rate)
@@ -433,10 +449,11 @@ def __main__():
         all_fold_labels.extend(fold_labels)
         all_fold_accuracies.append(fold_accuracy)
 
-    plot_training_loss(training_losses, file_name_prefix, version=version)
-    plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name_prefix, version=version)
-    plot_accuracies(all_fold_accuracies, file_name_prefix, version=version)
+    if not parser.parse_args().quick_test:
+        plot_training_loss(training_losses, file_name_prefix, version=version)
+        plot_accuracies(all_fold_accuracies, file_name_prefix, version=version)
 
+    plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name_prefix, version=version)
 
 if __name__ == "__main__":
     __main__()
