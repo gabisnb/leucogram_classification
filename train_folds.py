@@ -3,6 +3,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
 from torchvision import datasets, transforms, models
 from torchvision.transforms import ToTensor, Compose, Resize, Normalize
+from torchvision.transforms.functional import equalize
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -319,6 +320,7 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
 
     incorrect_counts_class = {class_name: 0 for class_name in class_names}
     incorrect_counts_individual = {individual: 0 for individual in individuals}
+    incorrect_counts_color = {'P': 0, 'G': 0}
     with open('folds/logs/test_' + file_name + version + '.txt', 'a') as f:
         f.write(f"\nIncorrect Predictions Paths Fold {str(fold+1)}:\n")
         for index in fold_incorrect_examples:
@@ -329,8 +331,12 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
             individual = get_individual_by_path(path, individuals)
             if individual is not None:
                 incorrect_counts_individual[individual] += 1
+                if 'P' in individual:
+                    incorrect_counts_color['P'] += 1
+                elif 'G' in individual:
+                    incorrect_counts_color['G'] += 1
     
-    fig, ax = plt.subplots(1, 2, figsize=(10, 6))
+    fig, ax = plt.subplots(1, 3, figsize=(10, 6))
 
     # Plot incorrect predictions per class
     ax[0].bar(incorrect_counts_class.keys(), incorrect_counts_class.values())
@@ -339,12 +345,20 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
     ax[0].set_title('Incorrect Predictions per Class')
     plt.xticks(rotation=45)
 
-    # Plot incorrect predictions per individual
-    ax[1].bar(incorrect_counts_individual.keys(), incorrect_counts_individual.values())
-    ax[1].set_xlabel('Individuals')
+    # Plot incorrect predictions per color
+    ax[1].bar(incorrect_counts_color.keys(), incorrect_counts_color.values())
+    ax[1].set_xlabel('Dye Color')
     ax[1].set_ylabel('Number of Incorrect Predictions')
-    ax[1].set_title('Incorrect Predictions per Individual')
+    ax[1].set_title('Incorrect Predictions per Dye Color')
     plt.xticks(rotation=45)
+
+    # Plot incorrect predictions per individual
+    ax[2].bar(incorrect_counts_individual.keys(), incorrect_counts_individual.values())
+    ax[2].set_xlabel('Individuals')
+    ax[2].set_ylabel('Number of Incorrect Predictions')
+    ax[2].set_title('Incorrect Predictions per Individual')
+    plt.xticks(rotation=45)
+    
     plt.suptitle('Incorrect Predictions Counts Fold ' + str(fold+1))
     plt.tight_layout()
     plt.savefig('folds/incorrect_predictions/statistics/incorrect_predictions_counts_' + str(fold+1) + version + '.png')
