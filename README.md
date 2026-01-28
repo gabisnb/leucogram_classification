@@ -14,7 +14,9 @@ The dataset should be structured following the folder structure, in which images
 ### Running the script
 As the name implies, you should focus your attention on the "train_no_folds" script.
 - To train the network on a dataset, execute the following command on the root of this project:
+
 ```python3 train_no_folds -e <number-of-epochs>```
+
 - If you wish for the script to display the dataset structure, use the tag `-c` or `--check-dataset`.
 
 ## Training with cross validation
@@ -23,7 +25,9 @@ The dataset should be structured following the folder structure, in which images
 ### Running the script
 As the name implies, you should focus your attention on the "train_folds" script.
 - To train the network on a dataset, execute the following command on the root of this project:
+
 ```python3 train_folds -e <number-of-epochs>```
+
 - If you wish for the script to display statistics about the incorrect predictions, use the tag `-s` or `--statistics`.
 - If you wish for the script to do a test on your data with certain weights instead of training, use the tag `-q` or `--quick-test`.
 - If you wish to specify the prefix of the file of the weights you wish to use for the test, use the tag `-w <weights-file-prefix>` or `--weight-prefix <weights-file-prefix>`.
