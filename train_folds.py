@@ -370,6 +370,13 @@ def load_model_weights(model, weight_path):
     # model.eval()
     return model
 
+class EqualizeHistogram:
+    def __init__(self):
+        pass
+
+    def __call__(self, x):
+        return equalize(x)
+
 def __main__():
     data_path = Path("/home/gabriela/projetos/datasets/")
     image_path = data_path / "cut_bboxes_folds"
@@ -384,6 +391,7 @@ def __main__():
     fold_paths = [image_path / f"fold_{i+1}" for i in range(num_folds)]
     datasets_folds = []
     transform = Compose([
+        EqualizeHistogram(),
         Resize((224,224)),
         ToTensor(),
         Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
