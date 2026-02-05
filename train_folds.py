@@ -498,6 +498,10 @@ def __main__():
         if config["quick_test"]["enabled"]:
             print("Quick test, ignoring specified neural network and using resnet34.")
             version = config["quick_test"]["version"]
+            if version is None:
+                version = ""
+            else:
+                version = "_" + version
             file_name = config["quick_test"]["file_prefix"] + '_' + str(fold+1)
             resnet = models.resnet34().to(device)
             resnet = load_model_weights(resnet, "folds/weights/" + file_name + version + ".pth")
