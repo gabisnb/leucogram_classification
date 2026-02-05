@@ -1,0 +1,27 @@
+{
+    "network": "resnet34",
+    "experiment_version": "v1.0",
+    "epochs": 50,
+    "batch_size": 16,
+    "learning_rate": 0.01,
+    "dropout_rate": 0.0,
+    "optimizer": "sgd",
+    "dataset": {
+        "dataset_path": "/path/to/dataset/folder/",
+        "class_names": ["bastonete", "eosinofilo", "linfocito", "monocito", "neutrofilo"],
+        "folds": 
+            [["MaluP", "SlashP", "SlashG", "LobinhoG"],
+            ["DuqueP", "MagreloP", "TobyG", "GaiaG"],
+            ["UrasP", "NathyP", "PretinhaG", "NathyG"],
+            ["517P", "523P", "CarameloG", "JujubaG"],
+            ["459P", "519P", "NinaG", "NegaoG"]],
+        "only_test": ["CristalG"]
+    },
+    "quick_test": {
+        "enabled": false,
+        "weights_path": "folds/weights/",
+        "file_prefix": "resnet_16_0.01_50_sgd",
+        "version": "v1"
+    },
+    "generate_statistics": true
+}
