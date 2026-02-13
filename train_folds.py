@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser(description="Training and evaluating a ResNet m
 parser.add_argument("-i", "--starting-fold", type=int, help="Starting fold id for training.", default=1)
 parser.add_argument("-f", "--ending-fold", type=int, help="Ending fold id for training.", default=5)
 
-def train_fold(dataloader, model, loss_fn, epoch, optimizer, file_name="resnet", network_name="resnet", version="", training_loss=None):
+def train_fold(dataloader, model, loss_fn, epoch, optimizer, file_name="resnet", experiment_path="resnet/v0.0", training_loss=None):
 
     # size of the dataset
     size = len(dataloader.dataset)
@@ -34,9 +34,9 @@ def train_fold(dataloader, model, loss_fn, epoch, optimizer, file_name="resnet",
     totalLoss = 0
     
     try:
-        if not os.path.exists('folds/' + network_name + '/logs/'):
-            os.makedirs('folds/' + network_name + '/logs/')
-        open('folds/' + network_name + '/logs/train_' + file_name + version +'.txt', 'w').close()
+        if not os.path.exists('folds/' + experiment_path + '/logs/'):
+            os.makedirs('folds/' + experiment_path + '/logs/')
+        open('folds/' + experiment_path + '/logs/train_' + file_name +'.txt', 'w').close()
     except:
         print("Error writing to file")
 
@@ -67,9 +67,9 @@ def train_fold(dataloader, model, loss_fn, epoch, optimizer, file_name="resnet",
         training_loss.append(totalLoss/len(dataloader))
     # save results to file
     try:
-        if not os.path.exists('folds/' + network_name + '/logs/'):
-            os.makedirs('folds/' + network_name + '/logs/')
-        with open('folds/' + network_name + '/logs/train_' + file_name + version +'.txt', 'a') as f:
+        if not os.path.exists('folds/' + experiment_path + '/logs/'):
+            os.makedirs('folds/' + experiment_path + '/logs/')
+        with open('folds/' + experiment_path + '/logs/train_' + file_name +'.txt', 'a') as f:
             f.write(f"{epoch}:{totalLoss/len(dataloader):>7f}\n")
     except:
         print("Error writing to file")
@@ -138,7 +138,7 @@ def validate_fold(dataloader, class_names, model, loss_fn, batch_size, epoch, lr
     plt.savefig('confusion_matrix/val/resnet_cm_' + str(batch_size) + '_' + str(lr) + '_' + str(parser.parse_args().epochs) + '_' + str(optimizer) + version + '_val.png')
     plt.close()
 
-def test_fold(dataloader, class_names, model, loss_fn, file_name="resnet", network_name="resnet", fold=0, version=""):
+def test_fold(dataloader, class_names, model, loss_fn, file_name="resnet/v0.0", experiment_path="resnet", fold=0):
 
     # size of the dataset and number of batches
     size = len(dataloader.dataset)
@@ -184,9 +184,9 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name="resnet", netwo
 
     # save results to file
     try:
-        if not os.path.exists('folds/' + network_name + '/logs/'):
-            os.makedirs('folds/' + network_name + '/logs/')
-        with open('folds/' + network_name + '/logs/test_' + file_name + version + '.txt', 'w') as f:
+        if not os.path.exists('folds/' + experiment_path + '/logs/'):
+            os.makedirs('folds/' + experiment_path + '/logs/')
+        with open('folds/' + experiment_path + '/logs/test_' + file_name + '.txt', 'w') as f:
             f.write(f"Test Error: \n Accuracy: {accuracy:>0.1f}%, Avg loss: {test_loss:>8f} \n")
     except:
         print("Error writing to file")
@@ -207,9 +207,9 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name="resnet", netwo
     plt.ylabel('True')
     plt.title('Normalized Confusion Matrix Fold ' + str(fold+1))
 
-    if not os.path.exists('folds/' + network_name + '/confusion_matrix/test/normalized/'):
-        os.makedirs('folds/' + network_name + '/confusion_matrix/test/normalized/')
-    plt.savefig('folds/' + network_name + '/confusion_matrix/test/normalized/test_normalized_' + file_name + version + '.png')
+    if not os.path.exists('folds/' + experiment_path + '/confusion_matrix/normalized/'):
+        os.makedirs('folds/' + experiment_path + '/confusion_matrix/normalized/')
+    plt.savefig('folds/' + experiment_path + '/confusion_matrix/normalized/test_normalized_' + file_name + '.png')
     plt.close()
 
     plt.figure(figsize=(10, 7))
@@ -218,9 +218,9 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name="resnet", netwo
     plt.ylabel('True')
     plt.title('Confusion Matrix Fold ' + str(fold+1))
 
-    if not os.path.exists('folds/' + network_name + '/confusion_matrix/test/absolute/'):
-        os.makedirs('folds/' + network_name + '/confusion_matrix/test/absolute/')
-    plt.savefig('folds/' + network_name + '/confusion_matrix/test/absolute/test_absolute_' + file_name + version + '.png')
+    if not os.path.exists('folds/' + experiment_path + '/confusion_matrix/absolute/'):
+        os.makedirs('folds/' + experiment_path + '/confusion_matrix/absolute/')
+    plt.savefig('folds/' + experiment_path + '/confusion_matrix/absolute/test_absolute_' + file_name + '.png')
     plt.close()
     
     return all_preds, all_labels, incorrect_examples, accuracy
@@ -237,14 +237,14 @@ def get_losses_by_epoch(log_file_path):
         print(f"Error reading log file: {e}")
     return losses
 
-def plot_training_loss(logs_path, n_folds=5, file_name="resnet", network_name="resnet", version=""):
+def plot_training_loss(logs_path, n_folds=5, file_name="resnet", experiment_path="resnet/v0.0"):
     fig, folds = plt.subplots(math.ceil(n_folds/3.0), 3, figsize=(20, 12))
     i = 0
     all_losses_plot = folds.flat[n_folds]
     training_losses = []
 
     for fold in range(n_folds):
-        log_file_path = os.path.join(logs_path, f'train_{file_name}_{fold+1}{version}.txt')
+        log_file_path = os.path.join(logs_path, f'train_{file_name}_{fold+1}.txt')
         training_loss = get_losses_by_epoch(log_file_path)
         training_losses.append(training_loss)
 
@@ -272,14 +272,14 @@ def plot_training_loss(logs_path, n_folds=5, file_name="resnet", network_name="r
     all_losses_plot.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
 
     plt.tight_layout(pad=2.0)
-    if not os.path.exists('folds/' + network_name + '/results/'):
-        os.makedirs('folds/' + network_name + '/results/')
-    plt.savefig('folds/' + network_name + '/results/training_loss_' + file_name + version + '.png')
+    if not os.path.exists('folds/' + experiment_path + '/results/'):
+        os.makedirs('folds/' + experiment_path + '/results/')
+    plt.savefig('folds/' + experiment_path + '/results/training_loss_' + file_name + '.png')
     plt.close()
 
-def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name="resnet", network_name="resnet", version=""):
-    if not os.path.exists('folds/' + network_name + '/confusion_matrix/test/complete/'):
-        os.makedirs('folds/' + network_name + '/confusion_matrix/test/complete/')
+def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name="resnet", experiment_path="resnet/v0.0"):
+    if not os.path.exists('folds/' + experiment_path + '/confusion_matrix/test/complete/'):
+        os.makedirs('folds/' + experiment_path + '/confusion_matrix/test/complete/')
 
     # Compute confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
@@ -292,7 +292,7 @@ def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name
     plt.ylabel('True')
     plt.title('Normalized Complete Confusion Matrix')
 
-    plt.savefig('folds/' + network_name + '/confusion_matrix/test/complete/test_normalized_' + file_name + version + '.png')
+    plt.savefig('folds/' + experiment_path + '/confusion_matrix/test/complete/test_normalized_' + file_name + '.png')
     plt.close()
 
     plt.figure(figsize=(10, 7))
@@ -301,10 +301,10 @@ def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name
     plt.ylabel('True')
     plt.title('Complete Confusion Matrix')
 
-    plt.savefig('folds/' + network_name + '/confusion_matrix/test/complete/test_absolute_' + file_name + version + '.png')
+    plt.savefig('folds/' + experiment_path + '/confusion_matrix/test/complete/test_absolute_' + file_name + '.png')
     plt.close()
 
-def plot_accuracies(accuracies, file_name="resnet", network_name="resnet", version=""):
+def plot_accuracies(accuracies, file_name="resnet", experiment_path="resnet/v0.0"):
     folds_ticks = [i+1 for i in range(len(accuracies))]
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.scatter(range(1, len(accuracies) + 1), accuracies, marker='o', color='blue', s=100)
@@ -314,9 +314,9 @@ def plot_accuracies(accuracies, file_name="resnet", network_name="resnet", versi
     ax.set_ylabel('Accuracy (%)')
     ax.set_title('Test Accuracy')
     ax.grid(True)
-    if not os.path.exists('folds/' + network_name + '/results/'):
-        os.makedirs('folds/' + network_name + '/results/')
-    plt.savefig('folds/' + network_name + '/results/test_accuracy_' + file_name + "_alt" + version + '.png')
+    if not os.path.exists('folds/' + experiment_path + '/results/'):
+        os.makedirs('folds/' + experiment_path + '/results/')
+    plt.savefig('folds/' + experiment_path + '/results/test_accuracy_' + file_name + "_alt" + '.png')
     plt.close()
 
 def get_img_dataset(img_index, datasets, fold):
@@ -332,7 +332,7 @@ def get_individual_by_path(path, individuals):
             return individual
     return None
 
-def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_examples, class_names, individuals, file_name="resnet", network_name="resnet", fold=0, version=''):
+def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_examples, class_names, individuals, file_name="resnet", experiment_path="resnet/v0.0", fold=0):
     nrows = 4
     ncols = 5
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 6))
@@ -354,18 +354,18 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
             fig.delaxes(ax)
 
     plt.tight_layout(h_pad=2.0)
-    if not os.path.exists('folds/' + network_name + '/incorrect_predictions/examples/'):
-        os.makedirs('folds/' + network_name + '/incorrect_predictions/examples/')
-    plt.savefig('folds/' + network_name + '/incorrect_predictions/examples/incorrect_examples_' + file_name + version + '.png')
+    if not os.path.exists('folds/' + experiment_path + '/incorrect_predictions/examples/'):
+        os.makedirs('folds/' + experiment_path + '/incorrect_predictions/examples/')
+    plt.savefig('folds/' + experiment_path + '/incorrect_predictions/examples/incorrect_examples_' + file_name + '.png')
     plt.close()
 
     incorrect_counts_class = {class_name: 0 for class_name in class_names}
     incorrect_counts_individual = {individual: 0 for individual in individuals}
     incorrect_counts_color = {'P': 0, 'G': 0}
 
-    if not os.path.exists('folds/' + network_name + '/logs/'):
-        os.makedirs('folds/' + network_name + '/logs/')
-    with open('folds/' + network_name + '/logs/test_' + file_name + version + '.txt', 'a') as f:
+    if not os.path.exists('folds/' + experiment_path + '/logs/'):
+        os.makedirs('folds/' + experiment_path + '/logs/')
+    with open('folds/' + experiment_path + '/logs/test_' + file_name + '.txt', 'a') as f:
         f.write(f"\nIncorrect Predictions Paths Fold {str(fold+1)}:\n")
         for index in fold_incorrect_examples:
             img_dataset, index = get_img_dataset(index, datasets, fold)
@@ -405,9 +405,9 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
     
     plt.suptitle('Incorrect Predictions Counts Fold ' + str(fold+1))
     plt.tight_layout()
-    if not os.path.exists('folds/' + network_name + '/incorrect_predictions/statistics/'):
-        os.makedirs('folds/' + network_name + '/incorrect_predictions/statistics/')
-    plt.savefig('folds/' + network_name + '/incorrect_predictions/statistics/incorrect_counts_' + file_name + version + '.png')
+    if not os.path.exists('folds/' + experiment_path + '/incorrect_predictions/statistics/'):
+        os.makedirs('folds/' + experiment_path + '/incorrect_predictions/statistics/')
+    plt.savefig('folds/' + experiment_path + '/incorrect_predictions/statistics/incorrect_counts_' + file_name + '.png')
     plt.close()
 
 def load_model_weights(model, weight_path):
@@ -452,7 +452,6 @@ def __main__():
     ])
 
     datasets_folds = []
-    training_losses = []
     all_fold_preds = []
     all_fold_labels = []
     all_fold_accuracies = []
@@ -468,19 +467,21 @@ def __main__():
     version = config["experiment_version"]
     if version == None:
         version = ""
-    else:
-        version = "_" + version
+    
+    experiment_path = network_full_name + "/" + version
 
-    starting_fold = parser.parse_args().starting_fold
-    ending_fold = parser.parse_args().ending_fold
-
-    if os.path.exists("folds/weights/" + network_name + "_" + str(starting_fold) + version + ".pth") or os.path.exists("folds/weights/" + network_name + "_" + str(ending_fold) + version + ".pth"):
+    if os.path.exists("folds/weights/" + experiment_path):
         confirm_version = input(f"Version {version} already exists. Do you want to overwrite it? (y/n) ")
         if confirm_version.lower() != 'y':
             print("Exiting program. Please change the version and try again.")
             exit(0)
+    else:
+        os.makedirs("folds/weights/" + experiment_path)
+    
+    starting_fold = parser.parse_args().starting_fold
+    ending_fold = parser.parse_args().ending_fold
 
-    for fold in range(ending_fold):
+    for fold in range(num_folds):
         datasets_folds.append(datasets.ImageFolder(root=fold_paths[fold], transform=transform, target_transform=None))
     datasets_folds.append(datasets.ImageFolder(root=image_path + "only_test", transform=transform, target_transform=None))
 
@@ -498,16 +499,18 @@ def __main__():
         if config["quick_test"]["enabled"]:
             print("Quick test, ignoring specified neural network and using resnet34.")
             version = config["quick_test"]["version"]
-            if version is None:
-                version = ""
+            experiment_path = "/quick_test/" + config["quick_test"]["file_prefix"] + "_" + config["quick_test"]["file_suffix"] + version
+            if version is None or version == "":
+                weigh_path = config["quick_test"]["weights_path"]
             else:
-                version = "_" + version
-            file_name = config["quick_test"]["file_prefix"] + '_' + str(fold+1)
+                weigh_path = config["quick_test"]["weights_path"] + "/" + version
+
+            file_name = config["quick_test"]["file_prefix"] + '_' + str(fold+1) + config["quick_test"]["file_suffix"]
             resnet = models.resnet34().to(device)
-            resnet = load_model_weights(resnet, "folds/weights/" + file_name + version + ".pth")
-            fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name=file_name, network_name=network_full_name, fold=fold, version=version)
+            resnet = load_model_weights(resnet, weigh_path + file_name + ".pth")
+            fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name=file_name, experiment_path=experiment_path, fold=fold)
             if config["generate_statistics"]:
-                plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name=file_name, network_name=network_full_name, fold=fold, version=version)
+                plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name=file_name, experiment_path=experiment_path, fold=fold)
 
             all_fold_preds.extend(fold_preds)
             all_fold_labels.extend(fold_labels)
@@ -533,26 +536,26 @@ def __main__():
         for t in range(epochs):
             print(f"-------------------------------\nEpoch {t+1}")
             start = time.time()
-            train_fold(train_dataloader, model, loss_fn, (t+1), optimizer, file_name=file_name, network_name=network_full_name, version=version)
+            train_fold(train_dataloader, model, loss_fn, (t+1), optimizer, file_name=file_name, experiment_path=experiment_path)
             end = time.time()
             print(f"Epoch time: {end-start}")
 
         # training_losses.append(training_loss)
-        if not os.path.exists("folds/weights/"):
-            os.makedirs("folds/weights/")
-        torch.save(model.state_dict(), "folds/weights/" + file_name + version + ".pth")
+        if not os.path.exists("folds/weights/" + experiment_path):
+            os.makedirs("folds/weights/" + experiment_path)
+        torch.save(model.state_dict(), "folds/weights/" + experiment_path + "/" + file_name + ".pth")
 
         start = time.time()
-        fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, model, loss_fn, file_name=file_name, network_name=network_full_name, fold=fold, version=version)
+        fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, model, loss_fn, file_name=file_name, experiment_path=experiment_path, fold=fold)
         end = time.time()
         print(f"Test time: {end-start}")
 
         if config["generate_statistics"]:
-            plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name=file_name, network_name=network_full_name, fold=fold, version=version)
+            plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name=file_name, experiment_path=experiment_path, fold=fold)
 
-        if not os.path.exists('folds/' + network_full_name + '/logs/'):
-            os.makedirs('folds/' + network_full_name + '/logs/')
-        with open('folds/' + network_full_name + '/logs/test_' + file_name + version + '.json', 'w') as f:
+        if not os.path.exists('folds/' + experiment_path + '/logs/'):
+            os.makedirs('folds/' + experiment_path + '/logs/')
+        with open('folds/' + experiment_path + '/logs/test_' + file_name + '.json', 'w') as f:
             json.dump({
                 "accuracy": fold_accuracy,
                 "predictions": fold_preds.tolist(),
@@ -564,22 +567,25 @@ def __main__():
         # all_fold_accuracies.append(fold_accuracy)
 
     if not config["quick_test"]["enabled"] and ending_fold == num_folds:
-        plot_training_loss('folds/' + network_full_name +'/logs/', file_name=network_name, network_name=network_full_name, version=version)
+        plot_training_loss('folds/' + experiment_path +'/logs/', file_name=network_name, experiment_path=experiment_path)
         
         all_fold_accuracies = []
         all_fold_preds = []
         all_fold_labels = []
         
-        for log in os.listdir('folds/' + network_full_name +'/logs/'):
-            if "test" in log and log.endswith(".json") and version in log:
-                with open('folds/' + network_full_name +'/logs/' + log, 'r') as f:
+        for log in os.listdir('folds/' + experiment_path +'/logs/'):
+            print(f"Processing log file: {log}")
+            if "test" in log and log.endswith(".json"):
+                with open('folds/' + experiment_path +'/logs/' + log, 'r') as f:
                     data = json.load(f)
                     all_fold_accuracies.append(data["accuracy"])
                     all_fold_preds.extend(np.array(data["predictions"]))
                     all_fold_labels.extend(np.array(data["labels"]))
-        plot_accuracies(all_fold_accuracies, file_name=file_name, network_name=network_full_name, version=version)
+        plot_accuracies(all_fold_accuracies, file_name=file_name, experiment_path=experiment_path)
 
-    plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name=file_name, network_name=network_full_name, version=version)
+        plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name=file_name, experiment_path=experiment_path)
 
+    elif config["quick_test"]["enabled"]:
+        plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name=file_name, experiment_path=experiment_path)
 if __name__ == "__main__":
     __main__()
