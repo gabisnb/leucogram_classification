@@ -73,6 +73,7 @@ def train_fold(dataloader, model, loss_fn, epoch, optimizer, file_name="resnet",
             f.write(f"{epoch}:{totalLoss/len(dataloader):>7f}\n")
     except:
         print("Error writing to file")
+    return (totalLoss/len(dataloader)).item()
 
 
 def validate_fold(dataloader, class_names, model, loss_fn, batch_size, epoch, lr, optimizer, version = "", validation_loss=None, validation_accuracy=None):
@@ -229,10 +230,14 @@ def get_losses_by_epoch(log_file_path):
     losses = []
     try:
         with open(log_file_path, 'r') as f:
-            for line in f:
-                if ':' in line:
-                    epoch, loss = line.strip().split(':')
-                    losses.append(float(loss))
+            # if ".txt" in log_file_path:
+            #     for line in f:
+            #         if ':' in line:
+            #             epoch, loss = line.strip().split(':')
+            #             losses.append(float(loss))
+            # elif ".json" in log_file_path:
+            data = json.load(f)
+            losses = data["losses"]
     except Exception as e:
         print(f"Error reading log file: {e}")
     return losses
@@ -244,7 +249,7 @@ def plot_training_loss(logs_path, n_folds=5, file_name="resnet", experiment_path
     training_losses = []
 
     for fold in range(n_folds):
-        log_file_path = os.path.join(logs_path, f'train_{file_name}_{fold+1}.txt')
+        log_file_path = os.path.join(logs_path, f'train_{file_name}_{fold+1}.json')
         training_loss = get_losses_by_epoch(log_file_path)
         training_losses.append(training_loss)
 
@@ -469,17 +474,22 @@ def __main__():
         version = ""
     
     experiment_path = network_full_name + "/" + version
+    starting_fold = parser.parse_args().starting_fold
+    ending_fold = parser.parse_args().ending_fold
 
     if os.path.exists("folds/weights/" + experiment_path):
-        confirm_version = input(f"Version {version} already exists. Do you want to overwrite it? (y/n) ")
-        if confirm_version.lower() != 'y':
-            print("Exiting program. Please change the version and try again.")
-            exit(0)
+        confirm_version = None
+        for fold in range(starting_fold, ending_fold+1):
+            for weight in os.listdir("folds/weights/" + experiment_path):
+                if str(fold) + ".pth" in weight:
+                    confirm_version = input(f"Version {version} of fold {fold} already exists. Do you want to overwrite it? (y/n) ")
+                    break
+            if confirm_version != None and confirm_version.lower() != 'y':
+                print("Exiting program. Please change the version and try again.")
+                exit(0)
     else:
         os.makedirs("folds/weights/" + experiment_path)
     
-    starting_fold = parser.parse_args().starting_fold
-    ending_fold = parser.parse_args().ending_fold
 
     for fold in range(num_folds):
         datasets_folds.append(datasets.ImageFolder(root=fold_paths[fold], transform=transform, target_transform=None))
@@ -531,14 +541,15 @@ def __main__():
         optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
         start, end = 0, 0
-        # training_loss = []
+        training_loss = []
 
         for t in range(epochs):
             print(f"-------------------------------\nEpoch {t+1}")
             start = time.time()
-            train_fold(train_dataloader, model, loss_fn, (t+1), optimizer, file_name=file_name, experiment_path=experiment_path)
+            loss = train_fold(train_dataloader, model, loss_fn, (t+1), optimizer, file_name=file_name, experiment_path=experiment_path)
             end = time.time()
             print(f"Epoch time: {end-start}")
+            training_loss.append(loss)
 
         # training_losses.append(training_loss)
         if not os.path.exists("folds/weights/" + experiment_path):
@@ -555,13 +566,18 @@ def __main__():
 
         if not os.path.exists('folds/' + experiment_path + '/logs/'):
             os.makedirs('folds/' + experiment_path + '/logs/')
+
+        with open('folds/' + experiment_path + '/logs/train_' + file_name + '.json', 'w') as f:
+            json.dump({
+                "losses": training_loss
+            }, f, indent=4)
+
         with open('folds/' + experiment_path + '/logs/test_' + file_name + '.json', 'w') as f:
             json.dump({
                 "accuracy": fold_accuracy,
                 "predictions": fold_preds.tolist(),
                 "labels": fold_labels.tolist()
             }, f, indent=4)
-
         # all_fold_preds.extend(fold_preds)
         # all_fold_labels.extend(fold_labels)
         # all_fold_accuracies.append(fold_accuracy)
