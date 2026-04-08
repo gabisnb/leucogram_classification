@@ -151,7 +151,7 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name="resnet/v0.0", 
     test_loss, correct = 0, 0
 
     # initialize lists of predictions and labels for confusion matrix
-    all_preds, all_labels, incorrect_examples = [], [], []
+    all_preds, all_labels, incorrect_examples, correct_examples = [], [], [], []
 
     # disable gradient computation
     with torch.no_grad():
@@ -169,6 +169,8 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name="resnet/v0.0", 
             all_labels.extend(y.cpu().numpy())
             if preds != y:
                 incorrect_examples.append(i)
+            else:
+                correct_examples.append(i)
             
             # calculate loss
             test_loss += loss_fn(pred, y).item()
@@ -224,7 +226,7 @@ def test_fold(dataloader, class_names, model, loss_fn, file_name="resnet/v0.0", 
     plt.savefig('folds/' + experiment_path + '/confusion_matrix/absolute/test_absolute_' + file_name + '.png')
     plt.close()
     
-    return all_preds, all_labels, incorrect_examples, accuracy
+    return all_preds, all_labels, incorrect_examples, correct_examples, accuracy
 
 def get_losses_by_epoch(log_file_path):
     losses = []
@@ -354,16 +356,47 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
             ax.imshow(img) # Use 'viridis' colormap for grayscale numpy arrays
             ax.set_title(f'Prev: {class_names[fold_preds[img_index]]}, Y: {class_names[label]}\nName: {individual}') # Set a title for each image
             ax.axis('off') # Hide the x and y axis ticks and labels for a cleaner look
+            # images.append(img)
         else:
             # Hide any unused subplots if the number of images is less than nrows*ncols
             fig.delaxes(ax)
-
+    
     plt.tight_layout(h_pad=2.0)
-    if not os.path.exists('folds/' + experiment_path + '/incorrect_predictions/examples/'):
-        os.makedirs('folds/' + experiment_path + '/incorrect_predictions/examples/')
-    plt.savefig('folds/' + experiment_path + '/incorrect_predictions/examples/incorrect_examples_' + file_name + '.png')
+    
+    os.makedirs('folds/' + experiment_path + '/incorrect_predictions/examples/', exist_ok=True)
+    plt.savefig('folds/' + experiment_path + '/incorrect_predictions/examples/' + file_name + '.png')
     plt.close()
 
+    images = []
+    plt.title("Incorrect examples histogram")
+    colors = ['red', 'green', 'blue']
+    pixels = []
+    for index in fold_incorrect_examples:
+        img_dataset, img_index = get_img_dataset(index, datasets, fold)
+        tensor = img_dataset[img_index][0].cpu()
+        img = (tensor.numpy().transpose((1, 2, 0))).squeeze()
+        img = np.clip(img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]), 0, 1) # Unnormalize
+        if len(pixels) == 0:
+            pixels = img
+        else:
+            pixels = pixels + img
+
+    # for i, img in enumerate(images):
+    #     if i == 0:
+    #         continue
+    #     pixels = pixels + img
+
+    # Plot each channel
+    for i, color in enumerate(colors):
+        sns.histplot(pixels[:, :, i].ravel(), color=color, kde=True, label=color, element="step")
+
+    plt.xlim(0, 255)
+    # plt.ylim(0, 11000)
+    plt.tight_layout(h_pad=2.0)
+    plt.legend()
+    plt.savefig('folds/' + experiment_path + '/incorrect_predictions/examples/histograms_' + file_name + '.png')
+    plt.close()
+        
     incorrect_counts_class = {class_name: 0 for class_name in class_names}
     incorrect_counts_individual = {individual: 0 for individual in individuals}
     incorrect_counts_color = {'P': 0, 'G': 0}
@@ -413,6 +446,36 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
     if not os.path.exists('folds/' + experiment_path + '/incorrect_predictions/statistics/'):
         os.makedirs('folds/' + experiment_path + '/incorrect_predictions/statistics/')
     plt.savefig('folds/' + experiment_path + '/incorrect_predictions/statistics/incorrect_counts_' + file_name + '.png')
+    plt.close()
+
+def plot_correct_predictions_statistics(datasets, fold_correct_examples, file_name="resnet", experiment_path="resnet/v0.0", fold=0):
+    plt.title("Incorrect examples histogram")
+    colors = ['red', 'green', 'blue']
+    pixels = []
+    unnormalize = Normalize(
+        mean=[-m/s for m, s in zip([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])],
+        std=[1/s for s in [0.229, 0.224, 0.225]]
+    )
+    for index in fold_correct_examples:
+        img_dataset, img_index = get_img_dataset(index, datasets, fold)
+        tensor = unnormalize(img_dataset[img_index][0].cpu())
+        img = (tensor.numpy().transpose((1, 2, 0))).squeeze()
+        img = np.clip(img, 0, 1) # Unnormalize
+        if len(pixels) == 0:
+            pixels = img
+        else:
+            pixels = pixels + img
+
+    # Plot each channel
+    for i, color in enumerate(colors):
+        sns.histplot(pixels[:, :, i].ravel(), color=color, kde=True, label=color, element="step")
+
+    # plt.xlim(0, 255)
+    # plt.ylim(0, 11000)
+    plt.tight_layout(h_pad=2.0)
+    plt.legend()
+    os.makedirs('folds/' + experiment_path + '/correct_predictions/', exist_ok=True)
+    plt.savefig('folds/' + experiment_path + '/correct_predictions/histograms_' + file_name + '.png')
     plt.close()
 
 def load_model_weights(model, weight_path):
@@ -477,7 +540,7 @@ def __main__():
     starting_fold = parser.parse_args().starting_fold
     ending_fold = parser.parse_args().ending_fold
 
-    if os.path.exists("folds/weights/" + experiment_path):
+    if os.path.exists("folds/weights/" + experiment_path) and not config["quick_test"]["enabled"]:
         confirm_version = None
         for fold in range(starting_fold, ending_fold+1):
             for weight in os.listdir("folds/weights/" + experiment_path):
@@ -488,7 +551,7 @@ def __main__():
                 print("Exiting program. Please change the version and try again.")
                 exit(0)
     else:
-        os.makedirs("folds/weights/" + experiment_path)
+        os.makedirs("folds/weights/" + experiment_path, exist_ok=True)
     
 
     for fold in range(num_folds):
@@ -508,19 +571,21 @@ def __main__():
         #! usado apenas em testes rápidos sem treinamento
         if config["quick_test"]["enabled"]:
             print("Quick test, ignoring specified neural network and using resnet34.")
-            version = config["quick_test"]["version"]
-            experiment_path = "/quick_test/" + config["quick_test"]["file_prefix"] + "_" + config["quick_test"]["file_suffix"] + version
-            if version is None or version == "":
-                weigh_path = config["quick_test"]["weights_path"]
+            test_version = config["quick_test"]["version"]
+            if config["quick_test"]["weights_version"] == "":
+                experiment_path = config["quick_test"]["folder_name"]
             else:
-                weigh_path = config["quick_test"]["weights_path"] + "/" + version
+                experiment_path = config["quick_test"]["folder_name"] + "/" + config["quick_test"]["weights_version"]
+            test_path = "/quick_test/" + experiment_path
+            weight_path = config["quick_test"]["weights_path"] + experiment_path
 
-            file_name = config["quick_test"]["file_prefix"] + '_' + str(fold+1) + config["quick_test"]["file_suffix"]
+            file_name = "resnet_" + str(fold+1)
             resnet = models.resnet34().to(device)
-            resnet = load_model_weights(resnet, weigh_path + file_name + ".pth")
-            fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name=file_name, experiment_path=experiment_path, fold=fold)
+            resnet = load_model_weights(resnet, weight_path + "/" + file_name + ".pth")
+            fold_preds, fold_labels, fold_incorrect_examples, fold_correct_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name=file_name, experiment_path=test_path, fold=fold)
             if config["generate_statistics"]:
-                plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name=file_name, experiment_path=experiment_path, fold=fold)
+                plot_correct_predictions_statistics(datasets_folds, fold_correct_examples, file_name=file_name, experiment_path=test_path, fold=fold)
+                plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name=file_name, experiment_path=test_path, fold=fold)
 
             all_fold_preds.extend(fold_preds)
             all_fold_labels.extend(fold_labels)
@@ -557,7 +622,7 @@ def __main__():
         torch.save(model.state_dict(), "folds/weights/" + experiment_path + "/" + file_name + ".pth")
 
         start = time.time()
-        fold_preds, fold_labels, fold_incorrect_examples, fold_accuracy = test_fold(test_dataloader, class_names, model, loss_fn, file_name=file_name, experiment_path=experiment_path, fold=fold)
+        fold_preds, fold_labels, fold_incorrect_examples, fold_correct_examples, fold_accuracy = test_fold(test_dataloader, class_names, model, loss_fn, file_name=file_name, experiment_path=experiment_path, fold=fold)
         end = time.time()
         print(f"Test time: {end-start}")
 
