@@ -1,5 +1,5 @@
 # About this project
-This project searches to classify images of imune cells in leucograms through the use of deep learning. This work is the product of a colaboration between the Computer Grapics Research Group and the veterenary medicine department of Federal University of Juiz de Fora (UFJF).
+This project seeks to classify images of imune cells in leucograms through the use of deep learning. This work is the product of a colaboration between the Computer Grapics Research Group and the veterenary medicine department of Federal University of Juiz de Fora (UFJF).
 
 Our objective is to build a neural network that can classify with considerable accuracy the most common types of imune cells found in leucograms to the point where it can be used in an aplication that facilitates and accelerates the work of veterinarians.
 
