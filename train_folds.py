@@ -1,4 +1,6 @@
 import math
+
+import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
@@ -294,19 +296,24 @@ def plot_complete_confusion_matrix(all_preds, all_labels, class_names, file_name
 
     # save confusion matrix as image
     plt.figure(figsize=(10, 7))
-    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    sns.set_theme(font_scale=1.4)
+    ax = sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=45)
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title('Normalized Complete Confusion Matrix')
+    plt.tight_layout(pad=2.0)
 
     plt.savefig('folds/' + experiment_path + '/confusion_matrix/test/complete/test_normalized_' + file_name + '.png')
     plt.close()
 
     plt.figure(figsize=(10, 7))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    ax = sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=45)
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title('Complete Confusion Matrix')
+    plt.tight_layout(pad=2.0)
 
     plt.savefig('folds/' + experiment_path + '/confusion_matrix/test/complete/test_absolute_' + file_name + '.png')
     plt.close()
@@ -339,16 +346,18 @@ def get_individual_by_path(path, individuals):
             return individual
     return None
 
-def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_examples, class_names, individuals, file_name="resnet", experiment_path="resnet/v0.0", fold=0):
+def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_examples, class_names, individuals, file_name="resnet", experiment_path="resnet/v0.0", fold=0, is_correct = False):
     nrows = 4
     ncols = 5
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 6))
+    df = pd.DataFrame(columns=['path', 'label'])
     for i, ax in enumerate(axes.flatten()):
         index = random.randint(0, len(fold_incorrect_examples)-1)
         img_index = fold_incorrect_examples[index]
         if i < nrows * ncols and i < len(fold_incorrect_examples):
             img_dataset, img_index = get_img_dataset(img_index, datasets, fold)
             path, label = img_dataset.samples[img_index]
+            df = pd.concat([df, pd.DataFrame([{'path': path, 'label': label}])], ignore_index=True)
             tensor = img_dataset[img_index][0].cpu()
             img = (tensor.numpy().transpose((1, 2, 0))).squeeze()
             img = np.clip(img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]), 0, 1) # Unnormalize
@@ -362,13 +371,21 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
             fig.delaxes(ax)
     
     plt.tight_layout(h_pad=2.0)
-    
-    os.makedirs('folds/' + experiment_path + '/incorrect_predictions/examples/', exist_ok=True)
-    plt.savefig('folds/' + experiment_path + '/incorrect_predictions/examples/' + file_name + '.png')
+    if is_correct:
+        os.makedirs('folds/' + experiment_path + '/correct_predictions/examples/', exist_ok=True)
+        plt.savefig('folds/' + experiment_path + '/correct_predictions/examples/' + file_name + '.png')
+        df.to_csv('folds/' + experiment_path + '/correct_predictions/' + file_name + '.csv')
+    else:
+        os.makedirs('folds/' + experiment_path + '/incorrect_predictions/examples/', exist_ok=True)
+        plt.savefig('folds/' + experiment_path + '/incorrect_predictions/examples/' + file_name + '.png')
+        df.to_csv('folds/' + experiment_path + '/incorrect_predictions/' + file_name + '.csv')
     plt.close()
 
     images = []
-    plt.title("Incorrect examples histogram")
+    if is_correct:
+        plt.title("Correct examples histogram")
+    else:
+        plt.title("Incorrect examples histogram")
     colors = ['red', 'green', 'blue']
     pixels = []
     for index in fold_incorrect_examples:
@@ -394,7 +411,10 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
     # plt.ylim(0, 11000)
     plt.tight_layout(h_pad=2.0)
     plt.legend()
-    plt.savefig('folds/' + experiment_path + '/incorrect_predictions/examples/histograms_' + file_name + '.png')
+    if is_correct:
+        plt.savefig('folds/' + experiment_path + '/correct_predictions/examples/histograms_' + file_name + '.png')
+    else:
+        plt.savefig('folds/' + experiment_path + '/incorrect_predictions/examples/histograms_' + file_name + '.png')
     plt.close()
         
     incorrect_counts_class = {class_name: 0 for class_name in class_names}
@@ -404,7 +424,10 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
     if not os.path.exists('folds/' + experiment_path + '/logs/'):
         os.makedirs('folds/' + experiment_path + '/logs/')
     with open('folds/' + experiment_path + '/logs/test_' + file_name + '.txt', 'a') as f:
-        f.write(f"\nIncorrect Predictions Paths Fold {str(fold+1)}:\n")
+        if is_correct:
+            f.write(f"\nCorrect Predictions Paths Fold {str(fold+1)}:\n")
+        else:
+            f.write(f"\nIncorrect Predictions Paths Fold {str(fold+1)}:\n")
         for index in fold_incorrect_examples:
             img_dataset, index = get_img_dataset(index, datasets, fold)
             path, label = img_dataset.samples[index]
@@ -420,32 +443,60 @@ def plot_incorrect_predictions_statistics(datasets, fold_preds, fold_incorrect_e
     
     fig, ax = plt.subplots(1, 3, figsize=(10, 6))
 
-    # Plot incorrect predictions per class
-    ax[0].bar(incorrect_counts_class.keys(), incorrect_counts_class.values())
-    ax[0].set_xlabel('Classes')
-    ax[0].set_ylabel('Number of Incorrect Predictions')
-    ax[0].set_title('Incorrect Predictions per Class')
-    plt.xticks(rotation=45)
+    if is_correct:
+        # Plot correct predictions per class
+        ax[0].bar(incorrect_counts_class.keys(), incorrect_counts_class.values())
+        ax[0].set_xlabel('Classes')
+        ax[0].set_ylabel('Number of correct Predictions')
+        ax[0].set_title('Correct Predictions per Class')
+        plt.xticks(rotation=45)
 
-    # Plot incorrect predictions per color
-    ax[1].bar(incorrect_counts_color.keys(), incorrect_counts_color.values())
-    ax[1].set_xlabel('Dye Color')
-    ax[1].set_ylabel('Number of Incorrect Predictions')
-    ax[1].set_title('Incorrect Predictions per Dye Color')
-    plt.xticks(rotation=45)
+        # Plot incorrect predictions per color
+        ax[1].bar(incorrect_counts_color.keys(), incorrect_counts_color.values())
+        ax[1].set_xlabel('Dye Color')
+        ax[1].set_ylabel('Number of correct Predictions')
+        ax[1].set_title('Correct Predictions per Dye Color')
+        plt.xticks(rotation=45)
 
-    # Plot incorrect predictions per individual
-    ax[2].bar(incorrect_counts_individual.keys(), incorrect_counts_individual.values())
-    ax[2].set_xlabel('Individuals')
-    ax[2].set_ylabel('Number of Incorrect Predictions')
-    ax[2].set_title('Incorrect Predictions per Individual')
-    plt.xticks(rotation=45)
-    
-    plt.suptitle('Incorrect Predictions Counts Fold ' + str(fold+1))
-    plt.tight_layout()
-    if not os.path.exists('folds/' + experiment_path + '/incorrect_predictions/statistics/'):
-        os.makedirs('folds/' + experiment_path + '/incorrect_predictions/statistics/')
-    plt.savefig('folds/' + experiment_path + '/incorrect_predictions/statistics/incorrect_counts_' + file_name + '.png')
+        # Plot incorrect predictions per individual
+        ax[2].bar(incorrect_counts_individual.keys(), incorrect_counts_individual.values())
+        ax[2].set_xlabel('Individuals')
+        ax[2].set_ylabel('Number of correct Predictions')
+        ax[2].set_title('Correct Predictions per Individual')
+        plt.xticks(rotation=45)
+
+        plt.suptitle('Correct Predictions Counts Fold ' + str(fold+1))
+        plt.tight_layout()
+        if not os.path.exists('folds/' + experiment_path + '/correct_predictions/statistics/'):
+            os.makedirs('folds/' + experiment_path + '/correct_predictions/statistics/')
+        plt.savefig('folds/' + experiment_path + '/correct_predictions/statistics/incorrect_counts_' + file_name + '.png')
+    else:
+        # Plot incorrect predictions per class
+        ax[0].bar(incorrect_counts_class.keys(), incorrect_counts_class.values())
+        ax[0].set_xlabel('Classes')
+        ax[0].set_ylabel('Number of Incorrect Predictions')
+        ax[0].set_title('Incorrect Predictions per Class')
+        plt.xticks(rotation=45)
+
+        # Plot incorrect predictions per color
+        ax[1].bar(incorrect_counts_color.keys(), incorrect_counts_color.values())
+        ax[1].set_xlabel('Dye Color')
+        ax[1].set_ylabel('Number of Incorrect Predictions')
+        ax[1].set_title('Incorrect Predictions per Dye Color')
+        plt.xticks(rotation=45)
+
+        # Plot incorrect predictions per individual
+        ax[2].bar(incorrect_counts_individual.keys(), incorrect_counts_individual.values())
+        ax[2].set_xlabel('Individuals')
+        ax[2].set_ylabel('Number of Incorrect Predictions')
+        ax[2].set_title('Incorrect Predictions per Individual')
+        plt.xticks(rotation=45)
+
+        plt.suptitle('Incorrect Predictions Counts Fold ' + str(fold+1))
+        plt.tight_layout()
+        if not os.path.exists('folds/' + experiment_path + '/incorrect_predictions/statistics/'):
+            os.makedirs('folds/' + experiment_path + '/incorrect_predictions/statistics/')
+        plt.savefig('folds/' + experiment_path + '/incorrect_predictions/statistics/incorrect_counts_' + file_name + '.png')
     plt.close()
 
 def plot_correct_predictions_statistics(datasets, fold_correct_examples, file_name="resnet", experiment_path="resnet/v0.0", fold=0):
@@ -584,7 +635,7 @@ def __main__():
             resnet = load_model_weights(resnet, weight_path + "/" + file_name + ".pth")
             fold_preds, fold_labels, fold_incorrect_examples, fold_correct_examples, fold_accuracy = test_fold(test_dataloader, class_names, resnet, loss_fn, file_name=file_name, experiment_path=test_path, fold=fold)
             if config["generate_statistics"]:
-                plot_correct_predictions_statistics(datasets_folds, fold_correct_examples, file_name=file_name, experiment_path=test_path, fold=fold)
+                plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_correct_examples, class_names, fold_individuals[fold], file_name=file_name, experiment_path=test_path, fold=fold, is_correct=True)
                 plot_incorrect_predictions_statistics(datasets_folds, fold_preds, fold_incorrect_examples, class_names, fold_individuals[fold], file_name=file_name, experiment_path=test_path, fold=fold)
 
             all_fold_preds.extend(fold_preds)
@@ -667,6 +718,7 @@ def __main__():
         plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name=file_name, experiment_path=experiment_path)
 
     elif config["quick_test"]["enabled"]:
+        print("Quick test final")
         plot_complete_confusion_matrix(all_fold_preds, all_fold_labels, class_names, file_name=file_name, experiment_path=experiment_path)
 if __name__ == "__main__":
     __main__()
